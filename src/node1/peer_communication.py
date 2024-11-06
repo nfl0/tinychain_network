@@ -54,7 +54,7 @@ def get_peers():
         logging.error(f"Unknown peer discovery method: {PEER_DISCOVERY_METHOD}")
         return []
 
-def broadcast_block_header(block_header):
+def broadcast_block_header(block_header, integrity_check):
     logging.info(f"Broadcasting block header with hash: {block_header.block_hash}")
     peers = get_peers()
     local_ips = get_local_ips()
@@ -63,7 +63,7 @@ def broadcast_block_header(block_header):
         if peer_ip in local_ips:
             continue  # Skip broadcasting to self
         try:
-            response = requests.post(f'http://{peer_uri}/receive_block', json={'block_header': block_header.to_dict()}, timeout=2)
+            response = requests.post(f'http://{peer_uri}/receive_block', json={'block_header': block_header.to_dict(), 'integrity_check': integrity_check}, timeout=2)
             if response.status_code == 200:
                 logging.info(f"Block header broadcasted to peer {peer_uri}")
             else:
