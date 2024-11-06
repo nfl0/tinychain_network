@@ -588,9 +588,9 @@ async def receive_block_header(request):
         return web.json_response({'error': 'Integrity check failed'}, status=400)
 
     # Verify the validity of the block header
-    if not validation_engine.validate_block_header(block_header, storage_engine.fetch_last_block_header()):
-        logging.error("Invalid block header received")
-        return web.json_response({'error': 'Invalid block header'}, status=400)
+    #if not validation_engine.validate_block_header(block_header, storage_engine.fetch_last_block_header()):
+    #    logging.error("Invalid block header received")
+    #    return web.json_response({'error': 'Invalid block header'}, status=400)
 
     # Verify the identity of the proposer through the included signature
     proposer_signature = find_proposer_signature(block_header)

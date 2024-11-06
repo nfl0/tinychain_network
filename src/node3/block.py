@@ -68,8 +68,15 @@ class BlockHeader:
         self.signatures = [Signature.from_dict(sig) for sig in signatures]
         self.transaction_hashes = transaction_hashes
 
+        if not hasattr(self, 'transactions'):
+            self.transactions = []
+
     @classmethod
     def from_dict(cls, header_data):
+
+        if 'transactions' not in header_data:
+            header_data['transactions'] = []
+
         block_header = cls(
             header_data['block_hash'],
             header_data['height'],
