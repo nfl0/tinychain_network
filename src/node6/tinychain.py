@@ -13,7 +13,7 @@ from validation_engine import ValidationEngine
 from vm import TinyVMEngine
 from wallet import Wallet
 from parameters import HTTP_PORT, MAX_TX_POOL, ROUND_TIMEOUT, PEER_DISCOVERY_METHOD, PEER_DISCOVERY_FILE, PEER_DISCOVERY_API
-from peer_communication import broadcast_block_header, receive_block_header, broadcast_transaction
+from peer_communication import broadcast_block_header, broadcast_transaction
 
 TINYCOIN = 1000000000000000000
 TINYCHAIN_UNIT = 'tatoshi'
@@ -553,6 +553,39 @@ async def send_transaction(request):
         except ValidationError:
             pass
     return web.json_response({'error': 'Invalid transaction data'}, status=400)
+
+async def receive_block_header(request):
+    logging.info("Received block header")
+    data = await request.json()
+    block_header_data = data.get('block_header')
+    if not block_header_data:
+        logging.error("Invalid block header data received")
+        return web.json_response({'error': 'Invalid block header data'}, status=400)
+
+    block_header = BlockHeader.from_dict(block_header_data)
+
+    # Verify the validity of the block header
+    if not validation_engine.validate_block_header(block_header, storage_engine.fetch_last_block_header()):
+        logging.error("Invalid block header received")
+        return web.json_response({'error': 'Invalid block header'}, status=400)
+
+    # Verify the identity of the proposer through the included signature
+    proposer_signature = find_proposer_signature(block_header)
+    if proposer_signature is None or not Wallet.verify_signature(block_header.block_hash, proposer_signature.signature_data, proposer_signature.validator_address):
+        logging.error("Invalid proposer signature received")
+        return web.json_response({'error': 'Invalid proposer signature'}, status=400)
+
+    # Check if a block header with the same hash already exists in memory
+    if block_header.block_hash in forger.in_memory_block_headers:
+        existing_block_header = forger.in_memory_block_headers[block_header.block_hash]
+        existing_block_header.append_signatures(block_header.signatures)
+        logging.info(f"Appended signatures to existing block header with hash: {block_header.block_hash}")
+    else:
+        # Submit the received block header to the forger for replay
+        forger.replay_block(block_header)
+        logging.info(f"Submitted block header with hash: {block_header.block_hash} for replay")
+
+    return web.json_response({'message': 'Block header received and processed'}, status=200)
 
 async def get_transaction_by_hash(request):
     transaction_hash = request.match_info['transaction_hash']

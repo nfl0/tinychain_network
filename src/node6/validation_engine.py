@@ -65,81 +65,74 @@ class ValidationEngine:
 
     def validate_block_header(self, block, previous_block_header):
         if not isinstance(block, Block):
+            print("Block is not an instance of Block class.")
             return False
         
         if not self.is_valid_block_hash(previous_block_header.block_hash):
+            print(f"Invalid previous block hash: {previous_block_header.block_hash}")
             return False
 
         if not self.is_valid_block_hash(block.header.block_hash):
+            print(f"Invalid block hash: {block.header.block_hash}")
             return False
 
         if block.header.previous_block_hash != previous_block_header.block_hash:
+            print(f"Previous block hash mismatch: {block.header.previous_block_hash} != {previous_block_header.block_hash}")
             return False
 
         if block.header.height != previous_block_header.height + 1:
-            print("block.height != previous_block.height + 1")
+            print(f"Block height mismatch: {block.header.height} != {previous_block_header.height + 1}")
             return False
 
         time_tolerance = 2
         current_time = int(time.time())
         if not (previous_block_header.timestamp < block.header.timestamp < current_time + time_tolerance):
+            print(f"Timestamp mismatch: {previous_block_header.timestamp} < {block.header.timestamp} < {current_time + time_tolerance}")
             return False
 
         values = [block.header.merkle_root, str(block.header.timestamp), str(block.header.state_root), previous_block_header.block_hash, block.header.chain_id]
         concatenated_string = ''.join(values).encode()
         computed_hash = blake3(concatenated_string).hexdigest()
         if block.header.block_hash != computed_hash:
-            print("block.block_hash != computed_hash")
+            print(f"Block hash mismatch: {block.header.block_hash} != {computed_hash}")
             return False
 
-        @staticmethod
-        def compute_merkle_root(transaction_hashes):
-            if len(transaction_hashes) == 0:
-                return blake3(b'').hexdigest()
-
-            while len(transaction_hashes) > 1:
-                if len(transaction_hashes) % 2 != 0:
-                    transaction_hashes.append(transaction_hashes[-1])
-                transaction_hashes = [blake3(transaction_hashes[i].encode() + transaction_hashes[i + 1].encode()).digest() for i in range(0, len(transaction_hashes), 2)]
-
-            if isinstance(transaction_hashes[0], str):
-                transaction_hashes[0] = transaction_hashes[0].encode('utf-8')
-
-            return blake3(transaction_hashes[0]).hexdigest()
-
+        # Merkle root computation debugging
         transaction_hashes = [t.to_dict()['transaction_hash'] for t in block.transactions]
+        print(f"Transaction hashes: {transaction_hashes}")
 
         if len(transaction_hashes) == 0:
             computed_merkle_root = blake3(b'').hexdigest()
-
-        if len(transaction_hashes) > 0:
-
+        else:
             while len(transaction_hashes) > 1:
                 if len(transaction_hashes) % 2 != 0:
                     transaction_hashes.append(transaction_hashes[-1])
                 transaction_hashes = [blake3(transaction_hashes[i].encode() + transaction_hashes[i + 1].encode()).digest() for i in range(0, len(transaction_hashes), 2)]
-
+            
             if isinstance(transaction_hashes[0], str):
                 transaction_hashes[0] = transaction_hashes[0].encode('utf-8')
-
-        computed_merkle_root = blake3(transaction_hashes[0]).hexdigest()
+            computed_merkle_root = blake3(transaction_hashes[0]).hexdigest()
 
         if block.header.merkle_root != computed_merkle_root:
-            print("block.merkle_root != computed_merkle_root")
+            print(f"Merkle root mismatch: {block.header.merkle_root} != {computed_merkle_root}")
             return False
 
         for signature in block.header.signatures:
             if not Wallet.verify_signature(block.header.block_hash, signature.signature_data, signature.validator_address):
+                print(f"Invalid signature for block hash: {block.header.block_hash}")
                 return False
 
         for transaction in block.header.transactions:
             if not self.validate_transaction(transaction):
+                print(f"Invalid transaction in block: {transaction}")
                 return False
 
         if not self.validate_round_robin_proposer(block.header.proposer, previous_block_header.proposer):
+            print(f"Invalid proposer: {block.header.proposer} != {previous_block_header.proposer}")
             return False
 
         return True
+
 
     def validate_block_header_signatures(self, block_header):
         for signature in block_header.signatures:
