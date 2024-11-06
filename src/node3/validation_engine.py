@@ -151,7 +151,7 @@ class ValidationEngine:
             sorted_validators = sorted(validator_set.keys(), key=lambda k: validator_set[k]['index'])
             previous_index = sorted_validators.index(previous_proposer)
             expected_proposer = sorted_validators[(previous_index + 1) % len(sorted_validators)]
-            logging.info(f"Expected proposer: {expected_proposer}, Current proposer: {current_proposer}")
+            print(f"Expected proposer: {expected_proposer}, Current proposer: {current_proposer}")
             return current_proposer == expected_proposer
-        logging.error("No validators found in the current validator set")
+        print("No validators found in the current validator set")
         return False
