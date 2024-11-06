@@ -104,7 +104,7 @@ class Forger:
             return False
         return True
 
-    def forge_new_block(self):
+    async def forge_new_block(self):
         logging.info("Starting to forge a new block")
         transactions_to_forge = self.get_transactions_to_forge()
 
@@ -135,10 +135,10 @@ class Forger:
         self.in_memory_blocks[block.header.block_hash] = block
         self.in_memory_block_headers[block.header.block_hash] = block_header
 
-        broadcast_block_header(block_header)
+        await broadcast_block_header(block_header)
 
 
-    def replay_block(self, block_header):
+    async def replay_block(self, block_header):
         logging.info("Starting to replay a block")
         transactions_to_forge = self.get_transactions_to_forge(block_header)
 
@@ -179,7 +179,7 @@ class Forger:
         self.in_memory_blocks[block.header.block_hash] = block
         self.in_memory_block_headers[block.header.block_hash] = block_header
 
-        broadcast_block_header(block_header)
+        await broadcast_block_header(block_header)
 
         if block.header.has_enough_signatures(required_signatures=2/3 * len(self.fetch_current_validator_set())):
             self.store_block_procedure(block, new_state)
@@ -316,7 +316,7 @@ class Forger:
                         logging.info("******************")
                         logging.info("forge_new_block")
                         logging.info("******************")
-                        self.forge_new_block()
+                        await self.forge_new_block()
                     else:
                         await self.wait_for_new_block_headers()
 
@@ -328,7 +328,7 @@ class Forger:
                 current_time = int(time.time())
                 if current_time >= previous_block_header.timestamp + ROUND_TIMEOUT:
                     if self.wallet.get_address() == self.select_proposer():
-                        self.forge_new_block()
+                        await self.forge_new_block()
                     break
 
 class StorageEngine:
@@ -582,7 +582,7 @@ async def receive_block_header(request):
         logging.info(f"Appended signatures to existing block header with hash: {block_header.block_hash}")
     else:
         # Submit the received block header to the forger for replay
-        forger.replay_block(block_header)
+        await forger.replay_block(block_header)
         logging.info(f"Submitted block header with hash: {block_header.block_hash} for replay")
 
     return web.json_response({'message': 'Block header received and processed'}, status=200)
@@ -624,7 +624,7 @@ async def cleanup(app):
 
 app.on_cleanup.append(cleanup)
 
-if __name__ == '__main__':
+if __name__  == '__main__':
     loop = asyncio.get_event_loop()
 
     app_runner = web.AppRunner(app)

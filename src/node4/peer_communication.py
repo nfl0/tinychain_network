@@ -2,9 +2,6 @@ import requests
 import logging
 import socket
 import psutil  # Import psutil to get all network interfaces and their IPs
-from aiohttp import web
-from block import BlockHeader, Signature
-from wallet import Wallet
 from parameters import PEER_DISCOVERY_METHOD, PEER_DISCOVERY_FILE, PEER_DISCOVERY_API
 
 def get_local_ips():
@@ -66,7 +63,7 @@ def broadcast_block_header(block_header):
         if peer_ip in local_ips:
             continue  # Skip broadcasting to self
         try:
-            response = requests.post(f'http://{peer_uri}/receive_block', json={'block_header': block_header.to_dict()}, timeout=0.3)
+            response = requests.post(f'http://{peer_uri}/receive_block', json={'block_header': block_header.to_dict()}, timeout=2)
             if response.status_code == 200:
                 logging.info(f"Block header broadcasted to peer {peer_uri}")
             else:
