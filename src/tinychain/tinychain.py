@@ -136,7 +136,7 @@ class Forger:
         self.in_memory_block_headers[block.header.block_hash] = block_header
 
         integrity_check = self.generate_integrity_check(block_header)
-        asyncio.create_task(broadcast_block_header(block_header, integrity_check))
+        broadcast_block_header(block_header, integrity_check)
 
 
     def replay_block(self, block_header):
@@ -181,7 +181,7 @@ class Forger:
         self.in_memory_block_headers[block.header.block_hash] = block_header
 
         integrity_check = self.generate_integrity_check(block_header)
-        asyncio.create_task(broadcast_block_header(block_header, integrity_check))
+        broadcast_block_header(block_header, integrity_check)
 
         if block.header.has_enough_signatures(required_signatures=2/3 * len(self.fetch_current_validator_set())):
             self.store_block_procedure(block, new_state)
@@ -550,7 +550,6 @@ storage_engine = StorageEngine(transactionpool)
 validation_engine = ValidationEngine(storage_engine)
 forger = Forger(transactionpool, storage_engine, validation_engine, wallet)
 
-block_header_lock = asyncio.Lock()  # Pcc02
 
 async def send_transaction(request):
     data = await request.json()
@@ -580,40 +579,39 @@ async def receive_block_header(request):
 
     block_header = BlockHeader.from_dict(block_header_data)
 
-    async with block_header_lock:  # Pcc02
-        # Verify the integrity check
-        if integrity_check != forger.generate_integrity_check(block_header):
-            logging.error("Integrity check failed for received block header")
-            return web.json_response({'error': 'Integrity check failed'}, status=400)
+    # Verify the integrity check
+    if integrity_check != forger.generate_integrity_check(block_header):
+        logging.error("Integrity check failed for received block header")
+        return web.json_response({'error': 'Integrity check failed'}, status=400)
 
-        # Verify the validity of the block header
-        #if not validation_engine.validate_block_header(block_header, storage_engine.fetch_last_block_header()):
-        #    logging.error("Invalid block header received")
-        #    return web.json_response({'error': 'Invalid block header'}, status=400)
+    # Verify the validity of the block header
+    #if not validation_engine.validate_block_header(block_header, storage_engine.fetch_last_block_header()):
+    #    logging.error("Invalid block header received")
+    #    return web.json_response({'error': 'Invalid block header'}, status=400)
 
-        # Check if the block header has already been seen
-        if validation_engine.has_seen_block_header(block_header):
-            logging.info(f"Block header with hash {block_header.block_hash} has already been seen. Skipping processing.")
-            return web.json_response({'message': 'Block header already seen'}, status=200)
+    # Check if the block header has already been seen
+    if validation_engine.has_seen_block_header(block_header):
+        logging.info(f"Block header with hash {block_header.block_hash} has already been seen. Skipping processing.")
+        return web.json_response({'message': 'Block header already seen'}, status=200)
 
-        # Verify the identity of the proposer through the included signature
-        proposer_signature = find_proposer_signature(block_header)
-        if proposer_signature is None or not Wallet.verify_signature(block_header.block_hash, proposer_signature.signature_data, proposer_signature.validator_address):
-            logging.error("Invalid proposer signature received")
-            return web.json_response({'error': 'Invalid proposer signature'}, status=400)
+    # Verify the identity of the proposer through the included signature
+    proposer_signature = find_proposer_signature(block_header)
+    if proposer_signature is None or not Wallet.verify_signature(block_header.block_hash, proposer_signature.signature_data, proposer_signature.validator_address):
+        logging.error("Invalid proposer signature received")
+        return web.json_response({'error': 'Invalid proposer signature'}, status=400)
 
-        # Check if a block header with the same hash already exists in memory
-        if block_header.block_hash in forger.in_memory_block_headers:
-            existing_block_header = forger.in_memory_block_headers[block_header.block_hash]
-            existing_block_header.append_signatures(block_header.signatures)
-            logging.info(f"Appended signatures to existing block header with hash: {block_header.block_hash}")
-        else:
-            # Submit the received block header to the forger for replay
-            forger.replay_block(block_header)
-            logging.info(f"Submitted block header with hash: {block_header.block_hash} for replay")
+    # Check if a block header with the same hash already exists in memory
+    if block_header.block_hash in forger.in_memory_block_headers:
+        existing_block_header = forger.in_memory_block_headers[block_header.block_hash]
+        existing_block_header.append_signatures(block_header.signatures)
+        logging.info(f"Appended signatures to existing block header with hash: {block_header.block_hash}")
+    else:
+        # Submit the received block header to the forger for replay
+        forger.replay_block(block_header)
+        logging.info(f"Submitted block header with hash: {block_header.block_hash} for replay")
 
-        # Add the block header to the seen list
-        validation_engine.add_seen_block_header(block_header)
+    # Add the block header to the seen list
+    validation_engine.add_seen_block_header(block_header)
 
     return web.json_response({'message': 'Block header received and processed'}, status=200)
 
