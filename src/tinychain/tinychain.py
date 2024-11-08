@@ -12,7 +12,7 @@ from transaction import Transaction, transaction_schema
 from validation_engine import ValidationEngine
 from vm import TinyVMEngine
 from wallet import Wallet
-from parameters import HTTP_PORT, MAX_TX_POOL, ROUND_TIMEOUT, PEER_DISCOVERY_METHOD, PEER_DISCOVERY_FILE, PEER_DISCOVERY_API
+from parameters import HTTP_PORT, MAX_TX_POOL, ROUND_TIMEOUT
 from peer_communication import broadcast_block_header, broadcast_transaction
 
 TINYCOIN = 1000000000000000000
