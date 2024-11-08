@@ -300,14 +300,11 @@ class Forger:
     async def check_round_robin_result(self):
         while True:
             logging.info("******************")
-            logging.info("ROUND RESULT CHECK")
+            logging.info("CHECKING ROUND ROBIN RESULT")
             logging.info("******************")
             await asyncio.sleep(ROUND_TIMEOUT)
             previous_block_header = self.storage_engine.fetch_last_block_header()
             if previous_block_header:
-                logging.info("******************")
-                logging.info("previous_block_header is TRUE")
-                logging.info("******************")
                 current_time = int(time.time())
                 if current_time >= previous_block_header.timestamp + ROUND_TIMEOUT:
                     proposer = self.select_proposer()
