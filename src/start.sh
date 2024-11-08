@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# List of files to be copied from the tinychain folder into the nodes folders
+files=("block.py" "merkle_tree.py" "peer_communication.py" "requirements.txt" "transaction.py" "vm.py" "wallet.py" "genesis.json" "parameters.py" "peers.txt" "README.md" "tinychain.py" "validation_engine.py" "wallet_generator.py")
+
 # Set genesis_timestamp to current time + 60 seconds in all node*/genesis.json files
 current_time=$(date +%s)
 genesis_timestamp=$((current_time + 60))

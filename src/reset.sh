@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# List of directories to be removed
+# List of directories and files to be removed
 directories=("transactions.db" "headers.db" "blocks.db" "states.db")
+files=("block.py" "merkle_tree.py" "peer_communication.py" "requirements.txt" "transaction.py" "vm.py" "wallet.py" "genesis.json" "parameters.py" "peers.txt" "README.md" "tinychain.py" "validation_engine.py" "wallet_generator.py")
 
 # Iterate through node* directories
 for node_dir in node*/; do
