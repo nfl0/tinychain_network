@@ -17,6 +17,16 @@ for node_dir in node*/; do
         fi
     done
 
+    # Iterate through the list and remove each file
+    for file in "${files[@]}"; do
+        if [ -f "$node_dir$file" ]; then
+            rm "$node_dir$file"
+            echo "Removed $file in $node_dir"
+        else
+            echo "$file does not exist in $node_dir"
+        fi
+    done
+
     # Reset the genesis_timestamp in genesis.json to 0
     if [ -f "$node_dir/genesis.json" ]; then
         jq '.genesis_timestamp = 0' "$node_dir/genesis.json" > tmp.$$.json && mv tmp.$$.json "$node_dir/genesis.json"
