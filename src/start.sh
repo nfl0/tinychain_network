@@ -10,7 +10,7 @@ genesis_timestamp=$((current_time + 60))
 # Copy files from src/tinychain to each node* directory
 for node_dir in node*; do
     for file in "${files[@]}"; do
-        cp "src/tinychain/$file" "$node_dir/"
+        cp "tinychain/$file" "$node_dir/"
     done
 done
 
