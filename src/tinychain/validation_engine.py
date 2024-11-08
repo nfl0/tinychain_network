@@ -10,6 +10,7 @@ from block import Block, Signature
 class ValidationEngine:
     def __init__(self, storage_engine):
         self.storage_engine = storage_engine
+        self.seen_block_headers = []  # List to store seen block headers and associated signatures
 
     def is_valid_address(self, address):
         return bool(re.match(r'^[0-9a-fA-F]+$', address))
@@ -133,7 +134,6 @@ class ValidationEngine:
 
         return True
 
-
     def validate_block_header_signatures(self, block_header):
         for signature in block_header.signatures:
             if not Wallet.verify_signature(block_header.block_hash, signature.signature_data, signature.validator_address):
@@ -155,3 +155,12 @@ class ValidationEngine:
             return current_proposer == expected_proposer
         print("No validators found in the current validator set")
         return False
+
+    def has_seen_block_header(self, block_header):
+        for seen_header in self.seen_block_headers:
+            if seen_header.block_hash == block_header.block_hash:
+                return True
+        return False
+
+    def add_seen_block_header(self, block_header):
+        self.seen_block_headers.append(block_header)
