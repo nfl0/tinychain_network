@@ -7,6 +7,13 @@ files=("block.py" "merkle_tree.py" "peer_communication.py" "requirements.txt" "t
 current_time=$(date +%s)
 genesis_timestamp=$((current_time + 60))
 
+# Copy files from src/tinychain to each node* directory
+for node_dir in node*; do
+    for file in "${files[@]}"; do
+        cp "src/tinychain/$file" "$node_dir/"
+    done
+done
+
 for node in node*/genesis.json; do
     jq --argjson timestamp "$genesis_timestamp" '.genesis_timestamp = $timestamp' "$node" > tmp.$$.json && mv tmp.$$.json "$node"
 done
