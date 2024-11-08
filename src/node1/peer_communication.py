@@ -62,14 +62,18 @@ def broadcast_block_header(block_header, integrity_check):
         peer_ip, peer_port = peer_uri.split(':')
         if peer_ip in local_ips:
             continue  # Skip broadcasting to self
-        try:
-            response = requests.post(f'http://{peer_uri}/receive_block', json={'block_header': block_header.to_dict(), 'integrity_check': integrity_check}, timeout=10)
-            if response.status_code == 200:
-                logging.info(f"Block header broadcasted to peer {peer_uri}")
-            else:
-                logging.error(f"Failed to broadcast block header to peer {peer_uri}")
-        except Exception as e:
-            logging.error(f"Error broadcasting block header to peer {peer_uri}: {e}")
+        for attempt in range(2):  # Retry mechanism
+            try:
+                response = requests.post(f'http://{peer_uri}/receive_block', json={'block_header': block_header.to_dict(), 'integrity_check': integrity_check}, timeout=20)
+                if response.status_code == 200:
+                    logging.info(f"Block header broadcasted to peer {peer_uri}")
+                    break  # Exit the retry loop if successful
+                else:
+                    logging.error(f"Failed to broadcast block header to peer {peer_uri}")
+            except Exception as e:
+                logging.error(f"Error broadcasting block header to peer {peer_uri}: {e}")
+                if attempt < 1:
+                    logging.info(f"Retrying broadcast to peer {peer_uri} (attempt {attempt + 1}/2)")
 
 def broadcast_transaction(transaction, sender_uri):
     peers = get_peers()
