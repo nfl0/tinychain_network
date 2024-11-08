@@ -2,7 +2,11 @@ import requests
 import logging
 import socket
 import psutil  # Import psutil to get all network interfaces and their IPs
-from parameters import PEER_DISCOVERY_METHOD, PEER_DISCOVERY_FILE, PEER_DISCOVERY_API
+import time  # Import time module for timeout handling
+from parameters import PEER_DISCOVERY_METHOD, PEER_DISCOVERY_FILE, PEER_DISCOVERY_API, ROUND_TIMEOUT
+
+# Dictionary to store the last broadcast time for each block header
+last_broadcast_time = {}
 
 def get_local_ips():
     local_ips = set()  # Use a set to avoid duplicate IPs
@@ -58,6 +62,15 @@ def broadcast_block_header(block_header, integrity_check):
     logging.info(f"Broadcasting block header with hash: {block_header.block_hash}")
     peers = get_peers()
     local_ips = get_local_ips()
+    current_time = time.time()
+
+    # Check if the block header has been broadcasted within the timeout window
+    if block_header.block_hash in last_broadcast_time:
+        last_broadcast = last_broadcast_time[block_header.block_hash]
+        if current_time - last_broadcast < ROUND_TIMEOUT:
+            logging.info(f"Skipping broadcast for block header {block_header.block_hash} due to timeout window")
+            return
+
     for peer_uri in peers:
         peer_ip, peer_port = peer_uri.split(':')
         if peer_ip in local_ips:
@@ -75,6 +88,9 @@ def broadcast_block_header(block_header, integrity_check):
                 if attempt < 1:
                     logging.info(f"Retrying broadcast to peer {peer_uri} (attempt {attempt + 1}/2)")
 
+    # Update the last broadcast time for the block header
+    last_broadcast_time[block_header.block_hash] = current_time
+
 def broadcast_transaction(transaction, sender_uri):
     peers = get_peers()
     local_ips = get_local_ips()
@@ -90,3 +106,8 @@ def broadcast_transaction(transaction, sender_uri):
                 logging.error(f"Failed to broadcast transaction to peer {peer_uri}")
         except Exception as e:
             logging.error(f"Error broadcasting transaction to peer {peer_uri}: {e}")
+
+def reset_broadcast_flags():
+    global last_broadcast_time
+    last_broadcast_time = {}
+    logging.info("Broadcast flags reset for new round")
