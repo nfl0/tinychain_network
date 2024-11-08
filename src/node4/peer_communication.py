@@ -63,7 +63,7 @@ def broadcast_block_header(block_header, integrity_check):
         if peer_ip in local_ips:
             continue  # Skip broadcasting to self
         try:
-            response = requests.post(f'http://{peer_uri}/receive_block', json={'block_header': block_header.to_dict(), 'integrity_check': integrity_check}, timeout=2)
+            response = requests.post(f'http://{peer_uri}/receive_block', json={'block_header': block_header.to_dict(), 'integrity_check': integrity_check}, timeout=10)
             if response.status_code == 200:
                 logging.info(f"Block header broadcasted to peer {peer_uri}")
             else:
