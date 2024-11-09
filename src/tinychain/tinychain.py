@@ -593,7 +593,7 @@ async def receive_block_header(request):
 
         # Check if the block header has already been seen
         if validation_engine.has_seen_block_header(block_header):
-            logging.info(f"Block header with hash {block_header.block_hash} has already been seen. Skipping processing.")
+            logging.info(f"Block header with hash {block_header.block_hash} has already been seen.")
             return web.json_response({'message': 'Block header already seen'}, status=200)
 
         # Verify the identity of the proposer through the included signature

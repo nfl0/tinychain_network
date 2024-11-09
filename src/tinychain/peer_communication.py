@@ -92,7 +92,7 @@ async def broadcast_block_header(block_header, integrity_check):
 async def broadcast_to_peer(session, peer_uri, block_header, integrity_check):
     for attempt in range(2):  # Retry mechanism
         try:
-            async with session.post(f'http://{peer_uri}/receive_block', json={'block_header': block_header.to_dict(), 'integrity_check': integrity_check}, timeout=3) as response:
+            async with session.post(f'http://{peer_uri}/receive_block', json={'block_header': block_header.to_dict(), 'integrity_check': integrity_check}, timeout=1) as response:
                 if response.status == 200:
                     logging.info(f"Block header broadcasted to peer {peer_uri}")
                     break  # Exit the retry loop if successful
