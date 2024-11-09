@@ -136,7 +136,7 @@ class Forger:
         self.in_memory_block_headers[block.header.block_hash] = block_header
 
         integrity_check = self.generate_integrity_check(block_header)
-        broadcast_block_header(block_header, integrity_check)
+        asyncio.create_task(broadcast_block_header(block_header, integrity_check))
 
 
     def replay_block(self, block_header):
@@ -181,7 +181,7 @@ class Forger:
         self.in_memory_block_headers[block.header.block_hash] = block_header
 
         integrity_check = self.generate_integrity_check(block_header)
-        broadcast_block_header(block_header, integrity_check)
+        asyncio.create_task(broadcast_block_header(block_header, integrity_check))
 
         if block.header.has_enough_signatures(required_signatures=2/3 * len(self.fetch_current_validator_set())):
             self.store_block_procedure(block, new_state)
@@ -550,6 +550,7 @@ storage_engine = StorageEngine(transactionpool)
 validation_engine = ValidationEngine(storage_engine)
 forger = Forger(transactionpool, storage_engine, validation_engine, wallet)
 
+block_header_lock = asyncio.Lock()  # Pcc02
 
 async def send_transaction(request):
     data = await request.json()

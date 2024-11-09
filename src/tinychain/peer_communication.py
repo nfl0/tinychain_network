@@ -4,9 +4,14 @@ import socket
 import psutil  # Import psutil to get all network interfaces and their IPs
 import time  # Import time module for timeout handling
 from parameters import PEER_DISCOVERY_METHOD, PEER_DISCOVERY_FILE, PEER_DISCOVERY_API, ROUND_TIMEOUT
+import asyncio  # Import asyncio for concurrent broadcasting
+from aiohttp import ClientSession  # Import ClientSession for async HTTP requests
 
 # Dictionary to store the last broadcast time for each block header
 last_broadcast_time = {}
+
+# Lock mechanism to ensure thread safety when broadcasting block headers
+broadcast_lock = asyncio.Lock()
 
 def get_local_ips():
     local_ips = set()  # Use a set to avoid duplicate IPs
@@ -58,7 +63,7 @@ def get_peers():
         logging.error(f"Unknown peer discovery method: {PEER_DISCOVERY_METHOD}")
         return []
 
-def broadcast_block_header(block_header, integrity_check):
+async def broadcast_block_header(block_header, integrity_check):
     logging.info(f"Broadcasting block header with hash: {block_header.block_hash}")
     peers = get_peers()
     local_ips = get_local_ips()
@@ -71,25 +76,32 @@ def broadcast_block_header(block_header, integrity_check):
             logging.info(f"Skipping broadcast for block header {block_header.block_hash} due to timeout window")
             return
 
-    for peer_uri in peers:
-        peer_ip, peer_port = peer_uri.split(':')
-        if peer_ip in local_ips:
-            continue  # Skip broadcasting to self
-        for attempt in range(2):  # Retry mechanism
-            try:
-                response = requests.post(f'http://{peer_uri}/receive_block', json={'block_header': block_header.to_dict(), 'integrity_check': integrity_check}, timeout=3)
-                if response.status_code == 200:
+    async with broadcast_lock:
+        async with ClientSession() as session:
+            tasks = []
+            for peer_uri in peers:
+                peer_ip, peer_port = peer_uri.split(':')
+                if peer_ip in local_ips:
+                    continue  # Skip broadcasting to self
+                tasks.append(broadcast_to_peer(session, peer_uri, block_header, integrity_check))
+            await asyncio.gather(*tasks)
+
+    # Update the last broadcast time for the block header
+    last_broadcast_time[block_header.block_hash] = current_time
+
+async def broadcast_to_peer(session, peer_uri, block_header, integrity_check):
+    for attempt in range(2):  # Retry mechanism
+        try:
+            async with session.post(f'http://{peer_uri}/receive_block', json={'block_header': block_header.to_dict(), 'integrity_check': integrity_check}, timeout=1) as response:
+                if response.status == 200:
                     logging.info(f"Block header broadcasted to peer {peer_uri}")
                     break  # Exit the retry loop if successful
                 else:
                     logging.error(f"Failed to broadcast block header to peer {peer_uri}")
-            except Exception as e:
-                logging.error(f"Error broadcasting block header to peer {peer_uri}: {e}")
-                if attempt < 1:
-                    logging.info(f"Retrying broadcast to peer {peer_uri} (attempt {attempt + 1}/2)")
-
-    # Update the last broadcast time for the block header
-    last_broadcast_time[block_header.block_hash] = current_time
+        except Exception as e:
+            logging.error(f"Error broadcasting block header to peer {peer_uri}: {e}")
+            if attempt < 1:
+                logging.info(f"Retrying broadcast to peer {peer_uri} (attempt {attempt + 1}/2)")
 
 def broadcast_transaction(transaction, sender_uri):
     peers = get_peers()

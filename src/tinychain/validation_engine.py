@@ -10,6 +10,7 @@ from block import Block, Signature
 class ValidationEngine:
     def __init__(self, storage_engine):
         self.storage_engine = storage_engine
+
         self.seen_block_headers = {}  # Dictionary to store seen block headers and associated signatures
 
     def is_valid_address(self, address):
