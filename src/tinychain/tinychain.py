@@ -54,6 +54,8 @@ class Forger:
         self.in_memory_block_headers = {}  # P7e15
         self.current_proposer_index = 0  # Initialize the current proposer index
 
+        self.lock = asyncio.Lock()  # P5584
+
     @staticmethod
     def generate_block_hash(merkle_root, timestamp, state_root, previous_block_hash, chain_id):
         values = [merkle_root, str(timestamp), str(state_root), previous_block_hash, chain_id]
@@ -104,92 +106,94 @@ class Forger:
             return False
         return True
 
-    def forge_new_block(self):
+    async def forge_new_block(self):
         logging.info("Starting to forge a new block")
-        transactions_to_forge = self.get_transactions_to_forge()
+        async with self.lock:  # P7a41
+            transactions_to_forge = self.get_transactions_to_forge()
 
-        valid_transactions_to_forge = [t for t in transactions_to_forge if self.validation_engine.validate_transaction(t)]
+            valid_transactions_to_forge = [t for t in transactions_to_forge if self.validation_engine.validate_transaction(t)]
 
-        previous_block_header = self.storage_engine.fetch_last_block_header()
-        previous_block_hash = previous_block_header.block_hash
-        height = previous_block_header.height + 1
-        current_state = self.storage_engine.fetch_state(previous_block_header.state_root)
+            previous_block_header = self.storage_engine.fetch_last_block_header()
+            previous_block_hash = previous_block_header.block_hash
+            height = previous_block_header.height + 1
+            current_state = self.storage_engine.fetch_state(previous_block_header.state_root)
 
-        tvm_engine = TinyVMEngine(current_state)
+            tvm_engine = TinyVMEngine(current_state)
 
-        self.proposer = self.wallet.get_address()
-        timestamp = int(time.time())
-        state_root, new_state = tvm_engine.exec(valid_transactions_to_forge, self.proposer)
-        transaction_hashes = [t.to_dict()['transaction_hash'] for t in valid_transactions_to_forge]
-        merkle_root = self.compute_merkle_root(transaction_hashes)
-        chain_id = "tinychain"
-        block_hash = self.generate_block_hash(merkle_root, timestamp, state_root, previous_block_hash, chain_id)
-        signature = self.sign(block_hash)
-        validator_index = self.get_validator_index(self.proposer)
-        signatures = [Signature(self.proposer, timestamp, signature, validator_index)]
+            self.proposer = self.wallet.get_address()
+            timestamp = int(time.time())
+            state_root, new_state = tvm_engine.exec(valid_transactions_to_forge, self.proposer)
+            transaction_hashes = [t.to_dict()['transaction_hash'] for t in valid_transactions_to_forge]
+            merkle_root = self.compute_merkle_root(transaction_hashes)
+            chain_id = "tinychain"
+            block_hash = self.generate_block_hash(merkle_root, timestamp, state_root, previous_block_hash, chain_id)
+            signature = self.sign(block_hash)
+            validator_index = self.get_validator_index(self.proposer)
+            signatures = [Signature(self.proposer, timestamp, signature, validator_index)]
 
-        block_header = self.create_block_header(block_hash, height, timestamp, previous_block_hash, merkle_root, state_root, self.proposer, chain_id, signatures, transaction_hashes)
+            block_header = self.create_block_header(block_hash, height, timestamp, previous_block_hash, merkle_root, state_root, self.proposer, chain_id, signatures, transaction_hashes)
 
-        block = Block(block_header, valid_transactions_to_forge)
+            block = Block(block_header, valid_transactions_to_forge)
 
-        self.in_memory_blocks[block.header.block_hash] = block
-        self.in_memory_block_headers[block.header.block_hash] = block_header
+            self.in_memory_blocks[block.header.block_hash] = block
+            self.in_memory_block_headers[block.header.block_hash] = block_header
 
-        integrity_check = self.generate_integrity_check(block_header)
-        broadcast_block_header(block_header, integrity_check)
+            integrity_check = self.generate_integrity_check(block_header)
+            broadcast_block_header(block_header, integrity_check)
 
 
-    def replay_block(self, block_header):
+    async def replay_block(self, block_header):
         logging.info("Starting to replay a block")
-        transactions_to_forge = self.get_transactions_to_forge(block_header)
+        async with self.lock:  # P7a41
+            transactions_to_forge = self.get_transactions_to_forge(block_header)
 
-        valid_transactions_to_forge = [t for t in transactions_to_forge if self.validation_engine.validate_transaction(t)]
+            valid_transactions_to_forge = [t for t in transactions_to_forge if self.validation_engine.validate_transaction(t)]
 
-        previous_block_header = self.storage_engine.fetch_last_block_header()
-        current_state = self.storage_engine.fetch_state(previous_block_header.state_root)
+            previous_block_header = self.storage_engine.fetch_last_block_header()
+            current_state = self.storage_engine.fetch_state(previous_block_header.state_root)
 
-        tvm_engine = TinyVMEngine(current_state)
+            tvm_engine = TinyVMEngine(current_state)
 
-        state_root, new_state = tvm_engine.exec(valid_transactions_to_forge, block_header.proposer)
-        if state_root == block_header.state_root:
-            transaction_hashes = [t.to_dict()['transaction_hash'] for t in block_header.transactions]
-            computed_merkle_root = self.compute_merkle_root(transaction_hashes)
-            if computed_merkle_root == block_header.merkle_root:
-                signature = self.wallet.sign_message(block_header.block_hash)
-                validator_index = self.get_validator_index(self.validator)
-                signatures = block_header.signatures
-                logging.info("Block signatures: %s", signatures)
+            state_root, new_state = tvm_engine.exec(valid_transactions_to_forge, block_header.proposer)
+            if state_root == block_header.state_root:
+                transaction_hashes = [t.to_dict()['transaction_hash'] for t in block_header.transactions]
+                computed_merkle_root = self.compute_merkle_root(transaction_hashes)
+                if computed_merkle_root == block_header.merkle_root:
+                    signature = self.wallet.sign_message(block_header.block_hash)
+                    validator_index = self.get_validator_index(self.validator)
+                    signatures = block_header.signatures
+                    logging.info("Block signatures: %s", signatures)
 
-                if isinstance(signatures, list) and all(isinstance(sig, Signature) for sig in signatures):
-                    signatures.append(Signature(self.validator, int(time.time()), signature, validator_index))
+                    if isinstance(signatures, list) and all(isinstance(sig, Signature) for sig in signatures):
+                        signatures.append(Signature(self.validator, int(time.time()), signature, validator_index))
+                    else:
+                        signatures = [Signature.from_dict(sig) for sig in signatures]
+                        signatures.append(Signature(self.validator, int(time.time()), signature, validator_index))
+
+                    block_header = self.create_block_header(block_header.block_hash, block_header.height, block_header.timestamp, block_header.previous_block_hash, block_header.merkle_root, block_header.state_root, block_header.proposer, block_header.chain_id, signatures, block_header.transaction_hashes)
+                    logging.info("Replay successful for block %s", block_header.block_hash)
                 else:
-                    signatures = [Signature.from_dict(sig) for sig in signatures]
-                    signatures.append(Signature(self.validator, int(time.time()), signature, validator_index))
-
-                block_header = self.create_block_header(block_header.block_hash, block_header.height, block_header.timestamp, block_header.previous_block_hash, block_header.merkle_root, block_header.state_root, block_header.proposer, block_header.chain_id, signatures, block_header.transaction_hashes)
-                logging.info("Replay successful for block %s", block_header.block_hash)
+                    logging.error("Replay failed for block %s (Merkle root mismatch)", block_header.block_hash)
+                    return False
             else:
-                logging.error("Replay failed for block %s (Merkle root mismatch)", block_header.block_hash)
+                logging.error("Replay failed for block %s (State root mismatch)", block_header.block_hash)
                 return False
-        else:
-            logging.error("Replay failed for block %s (State root mismatch)", block_header.block_hash)
-            return False
 
-        block = Block(block_header, valid_transactions_to_forge)
+            block = Block(block_header, valid_transactions_to_forge)
 
-        self.in_memory_blocks[block.header.block_hash] = block
-        self.in_memory_block_headers[block.header.block_hash] = block_header
+            self.in_memory_blocks[block.header.block_hash] = block
+            self.in_memory_block_headers[block.header.block_hash] = block_header
 
-        integrity_check = self.generate_integrity_check(block_header)
-        broadcast_block_header(block_header, integrity_check)
+            integrity_check = self.generate_integrity_check(block_header)
+            broadcast_block_header(block_header, integrity_check)
 
-        if block.header.has_enough_signatures(required_signatures=2/3 * len(self.fetch_current_validator_set())):
-            self.store_block_procedure(block, new_state)
-            return True
-        else:
-            del self.in_memory_blocks[block.header.block_hash]
-            del self.in_memory_block_headers[block.header.block_hash]
-            return False
+            if block.header.has_enough_signatures(required_signatures=2/3 * len(self.fetch_current_validator_set())):
+                self.store_block_procedure(block, new_state)
+                return True
+            else:
+                del self.in_memory_blocks[block.header.block_hash]
+                del self.in_memory_block_headers[block.header.block_hash]
+                return False
 
     def commit_genesis_block(self):
         with open('genesis.json', 'r') as f:
@@ -315,7 +319,7 @@ class Forger:
                         logging.info("******************")
                         logging.info("forge_new_block")
                         logging.info("******************")
-                        self.forge_new_block()
+                        await self.forge_new_block()  # P7a41
                     else:
                         await self.wait_for_new_block_headers()
 
@@ -327,7 +331,7 @@ class Forger:
                 current_time = int(time.time())
                 if current_time >= previous_block_header.timestamp + ROUND_TIMEOUT:
                     if self.wallet.get_address() == self.select_proposer():
-                        self.forge_new_block()
+                        await self.forge_new_block()  # P7a41
                     break
 
     def generate_integrity_check(self, block_header):
@@ -596,14 +600,15 @@ async def receive_block_header(request):
         return web.json_response({'error': 'Invalid proposer signature'}, status=400)
 
     # Check if a block header with the same hash already exists in memory
-    if block_header.block_hash in forger.in_memory_block_headers:
-        existing_block_header = forger.in_memory_block_headers[block_header.block_hash]
-        existing_block_header.append_signatures(block_header.signatures)
-        logging.info(f"Appended signatures to existing block header with hash: {block_header.block_hash}")
-    else:
-        # Submit the received block header to the forger for replay
-        forger.replay_block(block_header)
-        logging.info(f"Submitted block header with hash: {block_header.block_hash} for replay")
+    async with forger.lock:  # P7a41
+        if block_header.block_hash in forger.in_memory_block_headers:
+            existing_block_header = forger.in_memory_block_headers[block_header.block_hash]
+            existing_block_header.append_signatures(block_header.signatures)
+            logging.info(f"Appended signatures to existing block header with hash: {block_header.block_hash}")
+        else:
+            # Submit the received block header to the forger for replay
+            await forger.replay_block(block_header)
+            logging.info(f"Submitted block header with hash: {block_header.block_hash} for replay")
 
     return web.json_response({'message': 'Block header received and processed'}, status=200)
 
