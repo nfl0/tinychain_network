@@ -584,10 +584,15 @@ async def receive_block_header(request):
         logging.error("Integrity check failed for received block header")
         return web.json_response({'error': 'Integrity check failed'}, status=400)
 
-    # Verify the validity of the block header
-    #if not validation_engine.validate_block_header(block_header, storage_engine.fetch_last_block_header()):
-    #    logging.error("Invalid block header received")
-    #    return web.json_response({'error': 'Invalid block header'}, status=400)
+    # Check if the block header has already been seen
+    if validation_engine.has_seen_block_header(block_header):
+        logging.info(f"Block header with hash {block_header.block_hash} has already been seen. Skipping processing.")
+        # Ensure the already seen block header goes through the signature appending process
+        validator_address = forger.wallet.get_address()
+        signature_data = forger.wallet.sign_message(block_header.block_hash)
+        validator_index = forger.get_validator_index(validator_address)
+        validation_engine.append_signature_if_not_exists(block_header, validator_address, signature_data, validator_index)
+        return web.json_response({'message': 'Block header already seen'}, status=200)
 
     # Verify the identity of the proposer through the included signature
     proposer_signature = find_proposer_signature(block_header)
@@ -604,6 +609,9 @@ async def receive_block_header(request):
         # Submit the received block header to the forger for replay
         forger.replay_block(block_header)
         logging.info(f"Submitted block header with hash: {block_header.block_hash} for replay")
+
+    # Add the block header to the seen list
+    validation_engine.add_seen_block_header(block_header)
 
     return web.json_response({'message': 'Block header received and processed'}, status=200)
 
