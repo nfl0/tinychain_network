@@ -77,7 +77,7 @@ def broadcast_block_header(block_header, integrity_check):
             continue  # Skip broadcasting to self
         for attempt in range(2):  # Retry mechanism
             try:
-                response = requests.post(f'http://{peer_uri}/receive_block', json={'block_header': block_header.to_dict(), 'integrity_check': integrity_check}, timeout=3)
+                response = requests.post(f'http://{peer_uri}/receive_block', json={'block_header': block_header.to_dict(), 'integrity_check': integrity_check}, timeout=1)
                 if response.status_code == 200:
                     logging.info(f"Block header broadcasted to peer {peer_uri}")
                     break  # Exit the retry loop if successful
