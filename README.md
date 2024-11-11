@@ -49,3 +49,27 @@ Example:
 PEER_DISCOVERY_METHOD = 'api'
 PEER_DISCOVERY_API = 'http://example.com/api/peers'
 ```
+
+## TinyMask - Wallet Software for TinyChain
+
+TinyMask is a wallet software for TinyChain that allows you to create a wallet, check your balance, and send transactions.
+
+### How to Use TinyMask
+
+1. **Create a Wallet:**
+   Run the wallet generator script to create a new wallet.
+   ```bash
+   python src/tinychain/wallet_generator.py
+   ```
+
+2. **Check Balance:**
+   Use the TinyMask script to check the balance of your wallet.
+   ```bash
+   python src/tinychain/tinymask.py --action balance
+   ```
+
+3. **Send Transaction:**
+   Use the TinyMask script to send a transaction.
+   ```bash
+   python src/tinychain/tinymask.py --action send --receiver <receiver_address> --amount <amount> --memo <memo>
+   ```

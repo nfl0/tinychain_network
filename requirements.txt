@@ -6,3 +6,4 @@ jsonschema==4.23.0
 plyvel==1.5.1
 requests==2.32.3
 psutil==6.1.0
+mnemonic==0.20
