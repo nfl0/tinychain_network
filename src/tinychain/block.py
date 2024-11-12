@@ -4,8 +4,8 @@ block_header_schema = {
     'type': 'object',
     'properties': {
         'block_hash': {'type': 'string'},
-        'height': {'type': 'number'},
-        'timestamp': {'type': 'number'},
+        'height': {'type': 'integer'},
+        'timestamp': {'type': 'integer'},
         'previous_block_hash': {'type': 'string'},
         'merkle_root': {'type': 'string'},
         'state_root': {'type': 'string'},
@@ -17,9 +17,9 @@ block_header_schema = {
                 'type': 'object',
                 'properties': {
                     'validator_address': {'type': 'string'},
-                    'timestamp': {'type': 'number'},
+                    'timestamp': {'type': 'integer'},
                     'signature_data': {'type': 'string'},
-                    'validator_index': {'type': 'number'}
+                    'validator_index': {'type': 'integer'}
                 },
                 'required': ['validator_address', 'timestamp', 'signature_data', 'validator_index']
             }
@@ -58,8 +58,8 @@ class Signature:
 class BlockHeader:
     def __init__(self, block_hash, height, timestamp, previous_block_hash, merkle_root, state_root, proposer, chain_id, signatures, transaction_hashes):
         self.block_hash = block_hash
-        self.height = height
-        self.timestamp = timestamp
+        self.height = int(height)
+        self.timestamp = int(timestamp)
         self.previous_block_hash = previous_block_hash
         self.merkle_root = merkle_root
         self.state_root = state_root
