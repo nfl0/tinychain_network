@@ -18,9 +18,9 @@ class Transaction:
     def __init__(self, sender, receiver, amount, fee, nonce, signature, memo=''):
         self.sender = sender
         self.receiver = receiver
-        self.amount = amount
-        self.fee = fee
-        self.nonce = nonce
+        self.amount = int(amount)
+        self.fee = int(fee)
+        self.nonce = int(nonce)
         self.signature = signature
         self.memo = memo
 

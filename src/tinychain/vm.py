@@ -63,7 +63,7 @@ class TinyVMEngine:
         if receiver == self.staking_contract_address and memo in ("stake", "unstake"):
             is_stake = memo == "stake"
             staking_state, accounts_state = self.execute_staking_contract(
-                staking_state, sender, amount, is_stake, accounts_state
+                staking_state, sender, int(amount), is_stake, accounts_state
             )
             return True
         elif memo not in ("stake", "unstake") and receiver == self.staking_contract_address:
@@ -71,22 +71,22 @@ class TinyVMEngine:
             return False
 
         # Execute regular transfer
-        return self.execute_accounts_contract(accounts_state, sender, receiver, amount, "transfer") is not None
+        return self.execute_accounts_contract(accounts_state, sender, receiver, int(amount), "transfer") is not None
 
     def execute_accounts_contract(self, contract_state, sender, receiver, amount, operation):
 
         if operation == "credit":
-            contract_state[sender]["balance"] = contract_state.get(sender, {"balance": 0, "nonce": 0})["balance"] + amount
+            contract_state[sender]["balance"] = contract_state.get(sender, {"balance": 0, "nonce": 0})["balance"] + int(amount)
         elif operation == "transfer":
             sender_balance = contract_state.get(sender, {"balance": 0, "nonce": 0})["balance"]
             receiver_balance = contract_state.get(receiver, {"balance": 0, "nonce": 0})["balance"]
 
-            if sender_balance >= amount:
-                contract_state[sender]["balance"] = sender_balance - amount
+            if sender_balance >= int(amount):
+                contract_state[sender]["balance"] = sender_balance - int(amount)
                 if receiver not in contract_state:
                     logging.info(f"TinyVM: Receiver {receiver} not found in contract state. Adding receiver to contract state.")
                     contract_state[receiver] = {"balance": 0, "nonce": 0}
-                contract_state[receiver]["balance"] = receiver_balance + amount
+                contract_state[receiver]["balance"] = receiver_balance + int(amount)
                 contract_state[sender]["nonce"] += 1
             else:
                 logging.info(f"TinyVM: Insufficient balance for sender: {sender}")
@@ -103,10 +103,10 @@ class TinyVMEngine:
 
         if is_stake:
             sender_balance = accounts_state.get(sender, {"balance": 0, "nonce": 0})["balance"]
-            if sender_balance >= amount:
-                staked_balance["balance"] += amount
+            if sender_balance >= int(amount):
+                staked_balance["balance"] += int(amount)
                 staked_balance["status"] = "active"
-                accounts_state[sender]["balance"] = sender_balance - amount
+                accounts_state[sender]["balance"] = sender_balance - int(amount)
             else:
                 logging.info(f"TinyVM: Insufficient balance for staking by {sender}.")
                 return contract_state, accounts_state  # No change
