@@ -23,6 +23,37 @@ tinychain is this
    pip install -r requirements.txt
    ```
 
+## Setting up the Rust Environment
+
+1. Install Rust using `rustup`:
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
+
+2. Follow the on-screen instructions to complete the installation.
+
+3. Add the Rust toolchain to your PATH:
+   ```bash
+   source $HOME/.cargo/env
+   ```
+
+## Running the Rust Version of TinyChain
+
+1. Navigate to the `tinychain-rust` directory:
+   ```bash
+   cd src/tinychain-rust
+   ```
+
+2. Build the project using Cargo:
+   ```bash
+   cargo build
+   ```
+
+3. Run the project:
+   ```bash
+   cargo run
+   ```
+
 ## Peer Discovery Method
 
 TinyChain now supports multiple methods for peer discovery. You can specify the method of peer discovery using the `PEER_DISCOVERY_METHOD` parameter in the `src/parameters.py` file. The available options are:
